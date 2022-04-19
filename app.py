@@ -89,7 +89,7 @@ def main():
             # to avoid double sharing, remove duplicates in the to_emails (don't trust the users)
             clean_emails = []
             for to_email_dict in email["to"]:
-                lowercase_email = to_email_dict["original"].lower()
+                lowercase_email = to_email_dict["address"].lower()
                 if lowercase_email not in clean_emails:
                     clean_emails.append(lowercase_email)
             # loop through each email and forward the emails to the right channel
