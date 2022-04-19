@@ -16,6 +16,9 @@ def validate(params):
     token = params["token"] == os.environ["VERIFICATION_TOKEN"]
     team = params["team_id"] == os.environ["TEAM_ID"]
     channel = params["event"]["channel"] == os.environ["USLACKBOT_CHANNEL"]
+    bot_token = params["bot_token"] =  os.environ["BOT_TOKEN"]
+    email_channel_map = params["email_channel_map"] = os.environ["EMAIL_CHANNEL_MAP"]
+
     user = params["event"].get("user", "") == "USLACKBOT"
     subtype = params["event"]["subtype"] == "file_share"
 
@@ -35,7 +38,10 @@ def validate(params):
         if not subtype:
             print("Email subtype not right subtype: ",
                   params["event"]["subtype"])
-
+        if not bot_token:
+            print("env: BOT_TOKEN is not right!")
+        if not email_channel_map:
+            print("env: EMAIL_CHANNEL_MAP is not right")
         return False
 
 
@@ -72,59 +78,38 @@ def main():
                 # This email has already been processed
                 return Response(response="Duplicate", status=409)
 
-            email_provider = "http://gmail.com/"
-
-            sender_email = email["from"][0]["original"]
-            email_subject = email["title"]
-            email_content = "```" + email["plain_text"] + "```"
-            timestamp = email["timestamp"]
-
-            all_to = ', '.join([i["original"] for i in email["to"]])
-            all_cc = ', '.join([i["original"] for i in email["cc"]])
-
-            data = {
-                "text": "",
-                "attachments": [
-                    {
-                        "fallback": "An email was sent by " + sender_email,
-                        "color": "#2196F3",
-                        "pretext": "",
-                        "author_name": sender_email,
-                        "author_link": email_provider,
-                        "author_icon": "",
-                        "title": email_subject,
-                        "title_link": email_provider,
-                        "text": email_content,
-                        "fields": [],
-                        "footer": "Sent to : " + all_to,
-                        "footer_icon": "",
-                        "ts": timestamp
-                    }
-                ]
-            }
-
-            if all_cc:
-                data["attachments"][0]["fields"].append({
-                    "title": "cc",
-                    "value": all_cc
-                })
-
-            if email["attachments"]:
-                data["attachments"][0]["fields"].append({
-                    "title": "",
-                    "value": "This email also has attachments",
-                    "short": False
-                })
-
-            INCOMING_WEBHOOK_URL = os.environ["INCOMING_WEBHOOK_URL"]
-
             headers = {
-                "Content-type": "application/json"
+                "content-type": "application/json;charset=UTF-8",
+                "Authorization": "Bearer " + params["bot_token"],
             }
-            print("Sending the following data to ", INCOMING_WEBHOOK_URL)
-            print("\n\n\n", data, "\n\n\n")
-            r = requests.post(INCOMING_WEBHOOK_URL, headers=headers, json=data)
-            print("\n\n\n Exit with status code {}\n\n".format(r.status_code))
+
+            # this is loaded from JSON string in the environment variable
+            channels_dict = json.loads(params["email_channel_map"])
+
+            # to avoid double sharing, remove duplicates in the to_emails (don't trust the users)
+            clean_emails = []
+            for to_email_dict in email["to"]:
+                lowercase_email = to_email_dict["original"].lower()
+                if lowercase_email not in clean_emails:
+                    clean_emails.append(lowercase_email)
+            # loop through each email and forward the emails to the right channel
+            # if doing this with BOT user OAUTH token, then you need to grant the Bot Token scope remote_files:share
+            for to_email in clean_emails:
+                if to_email in channels_dict:
+                    channel = channels_dict[to_email]
+                    data = {
+                        "channel": channel,
+                        "text": "<" + email["permalink"] + "|email>",
+                    }
+
+                    # this could be security risk so remove before going prod
+                    print(json.dumps(email))
+                    print(json.dumps(headers))
+                    print(json.dumps(data))
+
+                    r = requests.post("https://slack.com/api/chat.postMessage", headers=headers, json=data)
+                    print("\n\n\nchat.postMessage Exit with status code {}\n\n".format(r.status_code))
+
             # Slack API sends two payloads for single event. This is a bug
             # involving Heroku and Slack API.
             os.environ[f"CHECKED_{email['id']}"] = ''
@@ -138,7 +123,6 @@ def main():
                 response="Bad request",
                 status=401
             )
-
 
 app.secret_key = os.environ.setdefault("APP_SECRET_KEY", "notsosecret")
 app.config['SESSION_TYPE'] = 'filesystem'

@@ -27,8 +27,7 @@ this bot watches for messages in the Slackbot chat and whenever a message arrive
    **App ID**
    **Verification token**
 3. In "**Sidebar -> OAuth and Permissions**" give the permissions for:
-   - `files:read`, `im:history` in User Token Scopes
-   - and `incoming-webhook` in Bot Token Scopes
+   - `files:read`, `im:history`, `chat:write`, `remote_files:share` in User Token Scopes and Bot Token Scopes
 4. Then Install the app from "**Sidebar -> OAuth and Permissions**"
 
 ### Deploying the server
@@ -53,10 +52,12 @@ Now time to configure the environment variables on heroku!
 | Config Variable        | Description                                                      |
 | ---------------------- | ---------------------------------------------------------------- |
 | `APP_ID`               | You get this when you create the app                             |
-| `INCOMING_WEBHOOK_URL` | You get this when you install the app on one channel             |
 | `TEAM_ID`              | ID of your slack workspace.                                      |
 | `USLACKBOT_CHANNEL`    | The ID of the direct messaging channel between you and @slackbot |
 | `VERIFICATION_TOKEN`   | You get this when you create the app                             |
+| `BOT_TOKEN`            | User OAuth Token  (xoxp)                                         |
+| `EMAIL_CHANNEL_MAP`    | JSON string '{ "email":"channel",...,}'                          |
+
 
 Note that the Slack IDs (for channel, users, files) are alphanumeric uppercase string of 9 characters. In browser, if you have opened the chat with the slackbot the URL will be of the format:
 
@@ -70,6 +71,11 @@ You can set these variables either on the Heroku Dashboard or via cli:
 
 ```
 $ heroku config:set APP_ID=xxxxxxxx
+$ heroku config:set VERIFICATION_TOKEN=xxxxxxxx
+$ heroku config:set TEAM_ID=xxxxxxxx
+$ heroku config:set USLACKBOT_CHANNEL=xxxxxxxx
+$ heroku config:set BOT_TOKEN="xoxp-xxxxxxxx"
+$ heroku config:set EMAIL_CHANNEL_MAP='{"test@test.test": "xxxxxxxx", "test2@test2.test2": "xxxxxxxx"}'
 ```
 
 Do note the link to which server is deployed, we will set it up in slack settings in a moment.
@@ -98,4 +104,4 @@ A PHP version of [email-to-slack by Mehdi Chaouch](https://github.com/mehdichaou
 - [ ] Check heroku logs.
 - [ ] Check if the server deployment is live by sending a GET request
 
-If these steps don't work please file an [Issue](https://github.com/kossiitkgp/email-to-slack/issues/new).
+If these steps don't work please file an [Issue](https://github.com/johnkhbaek/email-to-slack/issues/new).
